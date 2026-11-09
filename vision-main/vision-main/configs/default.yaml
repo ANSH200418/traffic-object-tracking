@@ -1,0 +1,76 @@
+video:
+  fps_override: null
+  tone_map_hdr: true
+
+detection:
+  # "s" (small) balances accuracy and speed for a general default that runs in reasonable time
+  # on CPU-only machines, not just GPU boxes. Swap to yolo11m/l/x for better accuracy on dense
+  # scenes if you have the compute (GPU strongly recommended above "s" -- see device below).
+  model_path: "yolo11s.pt"
+  confidence_threshold: 0.2
+  # Raised from 0.5: with many vehicles side-by-side or overlapping in a dense scene, standard
+  # NMS at 0.5 was merging/suppressing adjacent vehicle boxes down to whichever pair was most
+  # cleanly separated, undercounting how many vehicles show as detected at once.
+  iou_threshold: 0.65
+  # Raised from the library default (640, see settings.py note) so small/distant vehicles in a
+  # busy scene are still large enough on the resized frame for the detector to pick up -- at 640,
+  # a far-lane traffic jam can end up almost entirely missed. Cost scales roughly with the square
+  # of this value, so 960 is a middle ground, not a ceiling: raise it toward 1536-2016 for dense,
+  # high-resolution footage if your machine (RAM, and GPU if using one) has headroom, or lower it
+  # for faster iteration on a CPU-only machine.
+  imgsz: 960
+  vehicle_classes: ["car", "bus", "truck", "motorcycle", "bicycle"]
+  person_class: "person"
+  device: "auto"
+
+tracking:
+  tracker: "botsort"
+  appearance_reid_enabled: true
+  min_track_seconds: 0.3
+  # Lowered from 0.6: in dense multi-vehicle traffic, mutual occlusion between neighboring
+  # vehicles was dropping real, frequently-visible tracks that dipped just under the old bar.
+  min_visibility_ratio: 0.5
+  reid_max_gap_seconds: 1.0
+  reid_max_centroid_distance_ratio: 0.06
+  # Disabled (0.0): this ratio excludes tracks whose (camera-motion-compensated) position
+  # barely moves, meant to filter out curb-parked cars. `CameraMotionEstimator` masking (see
+  # analytics.motion_compensation) fixed the RANSAC contamination that was corrupting this
+  # signal (~15% -> ~2% spurious drift on this footage), but re-enabling it at any threshold
+  # that actually excludes a parked car (tried: 0.035) also excluded the ENTIRE far lane of
+  # this avenue's traffic jam -- confirmed by inspecting the annotated output, not just theory.
+  # The reason is perspective, not compensation: a distant, slow-moving vehicle covers very
+  # few *screen* pixels per real meter it travels, so at the far lane's distance its on-screen
+  # displacement over this clip's ~16s is barely above the noise floor a genuinely parked car
+  # also produces -- the two become indistinguishable from raw displacement alone. Recall on
+  # that far lane (most of the traffic in this scene) matters more than excluding the handful
+  # of curb-parked cars, so this stays off. Excluding specific parked cars reliably would need
+  # a position-based signal (e.g. a marked parking-lane/lot region) instead of a motion-based
+  # one -- see docs/architecture.md.
+  min_movement_ratio: 0.0
+
+congestion:
+  # "How many vehicles visible at once counts as busy" is inherently scene-dependent -- a 6-lane
+  # avenue's normal flow can sit well above what a 1-2 lane street ever reaches, since density
+  # here isn't normalized by lane count or camera distance. These are reasonable starting points
+  # for a moderate multi-lane street/intersection, not a universal calibration: after a run, check
+  # the simultaneous-vehicle-count distribution in outputs/analytics/tracks.csv (or summary.json)
+  # for your own footage and adjust these two numbers so LOW/MODERATE/HIGH actually line up with
+  # what the video shows -- a wide highway and a quiet residential street need different values.
+  density_thresholds:
+    moderate: 8
+    high: 20
+  persistence_frames: 15
+
+output:
+  output_dir: "outputs"
+  save_annotated_video: true
+
+speed:
+  enabled: true
+  reference_widths_m:
+    car: 1.8
+    bus: 2.5
+    truck: 2.5
+    motorcycle: 0.8
+    bicycle: 0.6
+  min_calibration_samples: 30
