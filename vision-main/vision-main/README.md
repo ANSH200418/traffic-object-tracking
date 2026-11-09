@@ -57,13 +57,6 @@ setting in the file is commented with what it trades off.
 Python 3.11+ · Ultralytics YOLO (ByteTrack/BoT-SORT) · OpenCV · Pydantic · Pandas ·
 Streamlit/Altair · pytest
 
-## Status
-
-This project is actively being developed and improved. If you're interested in contributing, see [CONTRIBUTING.md](CONTRIBUTING.md) or reach out at felibridge49@gmail.com.
-
-## License
-
-MIT 
 
 
 
